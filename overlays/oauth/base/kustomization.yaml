@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # Strimzi operator from developer-quickstart
+  - https://github.com/streamshub/developer-quickstart//components/core/base/strimzi-operator?ref=main
+  # Console operator from developer-quickstart
+  - https://github.com/streamshub/developer-quickstart//components/core/base/streamshub-console-operator?ref=main
+  # Keycloak
+  - ../../../components/keycloak
+
+patches:
+  # Remove Console ServiceMonitor (requires Prometheus CRD not installed in base)
+  - target:
+      group: monitoring.coreos.com
+      version: v1
+      kind: ServiceMonitor
+      name: streamshub-console-operator
+    patch: |-
+      $patch: delete
+      apiVersion: monitoring.coreos.com/v1
+      kind: ServiceMonitor
+      metadata:
+        name: streamshub-console-operator

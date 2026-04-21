@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-consumer
+  namespace: kafka
+  labels:
+    app: order-consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-consumer
+  template:
+    metadata:
+      labels:
+        app: order-consumer
+    spec:
+      containers:
+        - name: consumer
+          image: streamshub-oauth-demo/order-consumer:latest
+          imagePullPolicy: Never
+          env:
+            - name: BOOTSTRAP_SERVERS
+              value: dev-cluster-kafka-bootstrap.kafka.svc.cluster.local:9094
+            - name: TOKEN_ENDPOINT
+              value: http://keycloak.keycloak.svc.cluster.local:8080/realms/kafka-oauth/protocol/openid-connect/token
+            - name: CLIENT_ID
+              value: order-consumer
+            - name: CLIENT_SECRET
+              value: order-consumer-secret
+            - name: GROUP_ID
+              value: order-consumer-group
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi

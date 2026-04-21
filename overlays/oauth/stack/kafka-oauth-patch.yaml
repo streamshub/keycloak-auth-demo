@@ -1,0 +1,46 @@
+apiVersion: kafka.strimzi.io/v1
+kind: Kafka
+metadata:
+  name: dev-cluster
+  namespace: kafka
+spec:
+  kafka:
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      - name: oauth
+        port: 9094
+        type: internal
+        tls: false
+        authentication:
+          type: custom
+          sasl: true
+          listenerConfig:
+            sasl.enabled.mechanisms: OAUTHBEARER
+            oauthbearer.sasl.server.callback.handler.class: io.strimzi.kafka.oauth.server.JaasServerOauthValidatorCallbackHandler
+            oauthbearer.sasl.login.callback.handler.class: io.strimzi.kafka.oauth.client.JaasClientOauthLoginCallbackHandler
+            oauthbearer.sasl.jaas.config: >-
+              org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required
+              oauth.jwks.endpoint.uri="http://keycloak.keycloak.svc.cluster.local:8080/realms/kafka-oauth/protocol/openid-connect/certs"
+              oauth.token.endpoint.uri="http://keycloak.keycloak.svc.cluster.local:8080/realms/kafka-oauth/protocol/openid-connect/token"
+              oauth.username.claim="preferred_username"
+              oauth.check.issuer="false"
+              oauth.client.id="kafka"
+              oauth.client.secret="kafka-broker-secret" ;
+            principal.builder.class: io.strimzi.kafka.oauth.server.OAuthKafkaPrincipalBuilder
+    authorization:
+      type: custom
+      authorizerClass: io.strimzi.kafka.oauth.server.authorizer.KeycloakAuthorizer
+      supportsAdminApi: false
+    config:
+      principal.builder.class: io.strimzi.kafka.oauth.server.OAuthKafkaPrincipalBuilder
+      strimzi.authorization.kafka.cluster.name: dev-cluster
+      strimzi.authorization.client.id: kafka
+      strimzi.authorization.token.endpoint.uri: "http://keycloak.keycloak.svc.cluster.local:8080/realms/kafka-oauth/protocol/openid-connect/token"
+      strimzi.authorization.delegate.to.kafka.acl: "true"
+      strimzi.authorization.grants.refresh.period.seconds: "30"
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}

@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-producer
+  namespace: kafka
+  labels:
+    app: order-producer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-producer
+  template:
+    metadata:
+      labels:
+        app: order-producer
+    spec:
+      containers:
+        - name: producer
+          image: streamshub-oauth-demo/order-producer:latest
+          imagePullPolicy: Never
+          env:
+            - name: BOOTSTRAP_SERVERS
+              value: dev-cluster-kafka-bootstrap.kafka.svc.cluster.local:9094
+            - name: TOKEN_ENDPOINT
+              value: http://keycloak.keycloak.svc.cluster.local:8080/realms/kafka-oauth/protocol/openid-connect/token
+            - name: CLIENT_ID
+              value: order-producer
+            - name: CLIENT_SECRET
+              value: order-producer-secret
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi

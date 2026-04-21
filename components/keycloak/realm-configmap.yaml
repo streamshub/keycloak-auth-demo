@@ -1,0 +1,408 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm
+  namespace: keycloak
+data:
+  kafka-oauth-realm.json: |
+    {
+      "realm": "kafka-oauth",
+      "accessTokenLifespan": 300,
+      "ssoSessionIdleTimeout": 864000,
+      "ssoSessionMaxLifespan": 864000,
+      "enabled": true,
+      "sslRequired": "external",
+
+      "roles": {
+        "realm": [
+          {
+            "name": "Data Analyst",
+            "description": "Full access to all topics including PII"
+          },
+          {
+            "name": "Business Analyst",
+            "description": "Access to public (non-PII) topics only"
+          },
+          {
+            "name": "Producer",
+            "description": "Can write to all topics"
+          },
+          {
+            "name": "Consumer",
+            "description": "Can read from all topics"
+          }
+        ],
+        "client": {
+          "kafka": [
+            {
+              "name": "uma_protection",
+              "clientRole": true
+            }
+          ]
+        }
+      },
+
+      "groups": [
+        {
+          "name": "data-analysts",
+          "path": "/data-analysts"
+        },
+        {
+          "name": "business-analysts",
+          "path": "/business-analysts"
+        }
+      ],
+
+      "users": [
+        {
+          "username": "alice",
+          "enabled": true,
+          "firstName": "Alice",
+          "lastName": "DataAnalyst",
+          "email": "alice@example.com",
+          "emailVerified": true,
+          "credentials": [
+            {
+              "type": "password",
+              "value": "alice-password"
+            }
+          ],
+          "realmRoles": ["offline_access", "uma_authorization", "Data Analyst"],
+          "clientRoles": {
+            "account": ["view-profile", "manage-account"]
+          },
+          "groups": ["/data-analysts"]
+        },
+        {
+          "username": "bob",
+          "enabled": true,
+          "firstName": "Bob",
+          "lastName": "BusinessAnalyst",
+          "email": "bob@example.com",
+          "emailVerified": true,
+          "credentials": [
+            {
+              "type": "password",
+              "value": "bob-password"
+            }
+          ],
+          "realmRoles": ["offline_access", "uma_authorization", "Business Analyst"],
+          "clientRoles": {
+            "account": ["view-profile", "manage-account"]
+          },
+          "groups": ["/business-analysts"]
+        },
+        {
+          "username": "service-account-order-producer",
+          "enabled": true,
+          "serviceAccountClientId": "order-producer",
+          "realmRoles": ["offline_access", "Producer"]
+        },
+        {
+          "username": "service-account-order-consumer",
+          "enabled": true,
+          "serviceAccountClientId": "order-consumer",
+          "realmRoles": ["offline_access", "Consumer"]
+        },
+        {
+          "username": "service-account-streamshub-console",
+          "enabled": true,
+          "serviceAccountClientId": "streamshub-console",
+          "realmRoles": ["offline_access", "Data Analyst"]
+        }
+      ],
+
+      "clients": [
+        {
+          "clientId": "kafka",
+          "enabled": true,
+          "clientAuthenticatorType": "client-secret",
+          "secret": "kafka-broker-secret",
+          "bearerOnly": false,
+          "consentRequired": false,
+          "standardFlowEnabled": false,
+          "implicitFlowEnabled": false,
+          "directAccessGrantsEnabled": true,
+          "serviceAccountsEnabled": true,
+          "authorizationServicesEnabled": true,
+          "publicClient": false,
+          "fullScopeAllowed": true,
+          "authorizationSettings": {
+            "allowRemoteResourceManagement": true,
+            "policyEnforcementMode": "ENFORCING",
+            "decisionStrategy": "AFFIRMATIVE",
+            "scopes": [
+              { "name": "Create" },
+              { "name": "Read" },
+              { "name": "Write" },
+              { "name": "Delete" },
+              { "name": "Describe" },
+              { "name": "Alter" },
+              { "name": "DescribeConfigs" },
+              { "name": "AlterConfigs" },
+              { "name": "ClusterAction" },
+              { "name": "IdempotentWrite" }
+            ],
+            "resources": [
+              {
+                "name": "kafka-cluster:dev-cluster,Topic:pii.*",
+                "type": "Topic",
+                "ownerManagedAccess": false,
+                "displayName": "PII topics (pii.*)",
+                "scopes": [
+                  { "name": "Create" },
+                  { "name": "Read" },
+                  { "name": "Write" },
+                  { "name": "Delete" },
+                  { "name": "Describe" },
+                  { "name": "Alter" },
+                  { "name": "DescribeConfigs" },
+                  { "name": "AlterConfigs" }
+                ]
+              },
+              {
+                "name": "kafka-cluster:dev-cluster,Topic:public.*",
+                "type": "Topic",
+                "ownerManagedAccess": false,
+                "displayName": "Public topics (public.*)",
+                "scopes": [
+                  { "name": "Create" },
+                  { "name": "Read" },
+                  { "name": "Write" },
+                  { "name": "Delete" },
+                  { "name": "Describe" },
+                  { "name": "Alter" },
+                  { "name": "DescribeConfigs" },
+                  { "name": "AlterConfigs" }
+                ]
+              },
+              {
+                "name": "kafka-cluster:dev-cluster,Group:*",
+                "type": "Group",
+                "ownerManagedAccess": false,
+                "displayName": "All consumer groups on dev-cluster",
+                "scopes": [
+                  { "name": "Describe" },
+                  { "name": "Read" },
+                  { "name": "Delete" }
+                ]
+              },
+              {
+                "name": "kafka-cluster:dev-cluster,Cluster:*",
+                "type": "Cluster",
+                "ownerManagedAccess": false,
+                "displayName": "Cluster-level operations on dev-cluster",
+                "scopes": [
+                  { "name": "Describe" },
+                  { "name": "DescribeConfigs" },
+                  { "name": "AlterConfigs" },
+                  { "name": "ClusterAction" },
+                  { "name": "IdempotentWrite" }
+                ]
+              }
+            ],
+            "policies": [
+              {
+                "name": "Data Analyst",
+                "type": "role",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "roles": "[{\"id\":\"Data Analyst\",\"required\":true}]"
+                }
+              },
+              {
+                "name": "Business Analyst",
+                "type": "role",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "roles": "[{\"id\":\"Business Analyst\",\"required\":true}]"
+                }
+              },
+              {
+                "name": "Producer",
+                "type": "role",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "roles": "[{\"id\":\"Producer\",\"required\":true}]"
+                }
+              },
+              {
+                "name": "Consumer",
+                "type": "role",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "roles": "[{\"id\":\"Consumer\",\"required\":true}]"
+                }
+              },
+              {
+                "name": "Data Analysts: full topic access",
+                "type": "resource",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "resources": "[\"kafka-cluster:dev-cluster,Topic:pii.*\",\"kafka-cluster:dev-cluster,Topic:public.*\"]",
+                  "applyPolicies": "[\"Data Analyst\"]"
+                }
+              },
+              {
+                "name": "Data Analysts: full group access",
+                "type": "resource",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "resources": "[\"kafka-cluster:dev-cluster,Group:*\"]",
+                  "applyPolicies": "[\"Data Analyst\"]"
+                }
+              },
+              {
+                "name": "Data Analysts: cluster access",
+                "type": "resource",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "resources": "[\"kafka-cluster:dev-cluster,Cluster:*\"]",
+                  "applyPolicies": "[\"Data Analyst\"]"
+                }
+              },
+              {
+                "name": "Business Analysts: public topics only",
+                "type": "resource",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "resources": "[\"kafka-cluster:dev-cluster,Topic:public.*\"]",
+                  "applyPolicies": "[\"Business Analyst\"]"
+                }
+              },
+              {
+                "name": "Business Analysts: group access",
+                "type": "resource",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "resources": "[\"kafka-cluster:dev-cluster,Group:*\"]",
+                  "applyPolicies": "[\"Business Analyst\"]"
+                }
+              },
+              {
+                "name": "Business Analysts: basic cluster access",
+                "type": "scope",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "resources": "[\"kafka-cluster:dev-cluster,Cluster:*\"]",
+                  "scopes": "[\"DescribeConfigs\",\"IdempotentWrite\"]",
+                  "applyPolicies": "[\"Business Analyst\"]"
+                }
+              },
+              {
+                "name": "Producers: write all topics",
+                "type": "scope",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "resources": "[\"kafka-cluster:dev-cluster,Topic:pii.*\",\"kafka-cluster:dev-cluster,Topic:public.*\"]",
+                  "scopes": "[\"Describe\",\"Write\",\"Create\"]",
+                  "applyPolicies": "[\"Producer\"]"
+                }
+              },
+              {
+                "name": "Producers: idempotent write",
+                "type": "scope",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "resources": "[\"kafka-cluster:dev-cluster,Cluster:*\"]",
+                  "scopes": "[\"IdempotentWrite\"]",
+                  "applyPolicies": "[\"Producer\"]"
+                }
+              },
+              {
+                "name": "Consumers: read all topics",
+                "type": "scope",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "resources": "[\"kafka-cluster:dev-cluster,Topic:pii.*\",\"kafka-cluster:dev-cluster,Topic:public.*\"]",
+                  "scopes": "[\"Describe\",\"Read\"]",
+                  "applyPolicies": "[\"Consumer\"]"
+                }
+              },
+              {
+                "name": "Consumers: group access",
+                "type": "resource",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "resources": "[\"kafka-cluster:dev-cluster,Group:*\"]",
+                  "applyPolicies": "[\"Consumer\"]"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "clientId": "streamshub-console",
+          "enabled": true,
+          "clientAuthenticatorType": "client-secret",
+          "secret": "console-client-secret",
+          "bearerOnly": false,
+          "consentRequired": false,
+          "standardFlowEnabled": true,
+          "implicitFlowEnabled": false,
+          "directAccessGrantsEnabled": true,
+          "serviceAccountsEnabled": true,
+          "publicClient": false,
+          "fullScopeAllowed": true,
+          "redirectUris": ["https://console.127.0.0.1.nip.io/*"],
+          "webOrigins": ["https://console.127.0.0.1.nip.io"],
+          "protocolMappers": [
+            {
+              "name": "Groups Mapper",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-group-membership-mapper",
+              "consentRequired": false,
+              "config": {
+                "full.path": "true",
+                "userinfo.token.claim": "true",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "claim.name": "groups"
+              }
+            }
+          ]
+        },
+        {
+          "clientId": "order-producer",
+          "enabled": true,
+          "clientAuthenticatorType": "client-secret",
+          "secret": "order-producer-secret",
+          "bearerOnly": false,
+          "consentRequired": false,
+          "standardFlowEnabled": false,
+          "implicitFlowEnabled": false,
+          "directAccessGrantsEnabled": false,
+          "serviceAccountsEnabled": true,
+          "publicClient": false,
+          "fullScopeAllowed": true
+        },
+        {
+          "clientId": "order-consumer",
+          "enabled": true,
+          "clientAuthenticatorType": "client-secret",
+          "secret": "order-consumer-secret",
+          "bearerOnly": false,
+          "consentRequired": false,
+          "standardFlowEnabled": false,
+          "implicitFlowEnabled": false,
+          "directAccessGrantsEnabled": false,
+          "serviceAccountsEnabled": true,
+          "publicClient": false,
+          "fullScopeAllowed": true
+        }
+      ]
+    }

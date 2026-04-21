@@ -1,0 +1,89 @@
+apiVersion: console.streamshub.github.com/v1alpha1
+kind: Console
+metadata:
+  name: streamshub-console
+  namespace: streamshub-console
+spec:
+  hostname: console.127.0.0.1.nip.io
+  security:
+    oidc:
+      authServerUrl: http://keycloak.keycloak.svc.cluster.local:8080/realms/kafka-oauth
+      clientId: streamshub-console
+      clientSecret:
+        valueFrom:
+          secretKeyRef:
+            name: console-oidc-secret
+            key: client-secret
+    subjects:
+      - claim: groups
+        include:
+          - /data-analysts
+        roleNames:
+          - data-analyst
+      - claim: groups
+        include:
+          - /business-analysts
+        roleNames:
+          - business-analyst
+    roles:
+      - name: data-analyst
+        rules:
+          - resources:
+              - kafkas
+            privileges:
+              - ALL
+      - name: business-analyst
+        rules:
+          - resources:
+              - kafkas
+            privileges:
+              - ALL
+  kafkaClusters:
+    - name: dev-cluster
+      namespace: kafka
+      listener: oauth
+      properties:
+        values:
+          - name: sasl.jaas.config
+            value: >-
+              org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required
+              oauth.client.id="streamshub-console"
+              oauth.client.secret="console-client-secret"
+              oauth.token.endpoint.uri="http://keycloak.keycloak.svc.cluster.local:8080/realms/kafka-oauth/protocol/openid-connect/token" ;
+          - name: sasl.login.callback.handler.class
+            value: io.strimzi.kafka.oauth.client.JaasClientOauthLoginCallbackHandler
+      security:
+        roles:
+          - name: data-analyst
+            rules:
+              - resources:
+                  - topics
+                  - topics/records
+                  - topics/metrics
+                  - consumerGroups
+                  - nodes
+                  - nodes/metrics
+                  - nodes/configs
+                  - rebalances
+                privileges:
+                  - ALL
+          - name: business-analyst
+            rules:
+              - resources:
+                  - topics
+                  - topics/metrics
+                  - consumerGroups
+                  - nodes/metrics
+                  - rebalances
+                resourceNames:
+                  - "public.*"
+                privileges:
+                  - GET
+                  - LIST
+              - resources:
+                  - topics/records
+                resourceNames:
+                  - "public.*"
+                privileges:
+                  - GET
+                  - LIST
