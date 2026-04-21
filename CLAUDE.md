@@ -18,11 +18,11 @@ mvn package docker:build -f clients/pom.xml
 DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock mvn package docker:build -f clients/pom.xml
 
 # Deploy full stack (requires minikube running with ingress addon)
-./install.sh                      # Phase 1: operators + Keycloak; Phase 2: Kafka + Console + topics
-jbang scripts/SetupDemo.java      # Phase 3: build client images, load into minikube, deploy
+jbang scripts/Setup.java              # All phases: operators, Keycloak, Kafka, Console, clients
+jbang scripts/Setup.java --skip-infra # Skip infrastructure, only rebuild/deploy clients
 
 # Tear down
-./uninstall.sh
+jbang scripts/Teardown.java
 
 # Render kustomize output (useful for debugging patches)
 kubectl kustomize overlays/oauth/base
@@ -60,7 +60,8 @@ Service accounts (`order-producer`, `order-consumer`) authenticate via client cr
 - `components/topics/` -- KafkaTopic CRs (`pii.orders`, `public.order-events`).
 - `overlays/oauth/base/` -- Kustomize overlay for Phase 1 (operators + Keycloak).
 - `overlays/oauth/stack/` -- Kustomize overlay for Phase 2 (Kafka + Console operands + OAuth patches). Contains the critical `kafka-oauth-patch.yaml` and `console-oauth-patch.yaml`.
-- `scripts/SetupDemo.java` -- JBang script for Phase 3 (detects Docker/Podman, builds images, loads into minikube, deploys clients).
+- `scripts/Setup.java` -- JBang script for full demo setup (all 3 phases). Supports `--skip-infra` to only rebuild/deploy clients.
+- `scripts/Teardown.java` -- JBang script for full teardown (reverse order).
 - `docs/implementation-plan.md` -- Full design document with rationale for all decisions.
 
 ## Key Versions

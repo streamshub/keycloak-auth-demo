@@ -80,7 +80,7 @@ Producer and consumer are small Java applications built as container images usin
 Build flow:
 1. `mvn package` builds jars + container images via Fabric8 plugin
 2. Images land in local Docker/Podman image registry
-3. JBang `SetupDemo.java` script loads images into minikube (`minikube image load <image>`)
+3. JBang `Setup.java` script loads images into minikube (`minikube image load <image>`)
 4. Apps deployed as Kubernetes Deployments inside the cluster
 
 Clients use dedicated Keycloak service account clients with client credentials grant and talk to Kafka via the internal OAuth listener.
@@ -133,9 +133,8 @@ streamshub-oauth-demo/
 │           ├── console-oidc-secret.yaml      # Console OIDC client secret
 │           └── kafka-authz-secret.yaml       # Kafka authorizer client secret
 ├── scripts/
-│   └── SetupDemo.java                        # JBang: build images, load into minikube, deploy clients
-├── install.sh                                # Two-phase kustomize deployment
-├── uninstall.sh                              # Cleanup
+│   ├── Setup.java                            # JBang: full setup (all 3 phases, --skip-infra flag)
+│   └── Teardown.java                         # JBang: full teardown
 └── README.md
 ```
 
@@ -486,7 +485,7 @@ The realm JSON is mounted as a ConfigMap and auto-imported on first Keycloak boo
 7. Wait: Console ready (streamshub-console namespace)
 ```
 
-### Phase 3: Client apps + Demo (JBang SetupDemo.java)
+### Phase 3: Client apps + Demo (Setup.java Phase 3, or --skip-infra)
 ```
 8. Build client images: mvn package docker:build -f clients/pom.xml
 9. Load images into minikube: minikube image load streamshub-oauth-demo/order-producer:latest
@@ -497,15 +496,17 @@ The realm JSON is mounted as a ConfigMap and auto-imported on first Keycloak boo
     - Login as bob → sees only public.order-events
 ```
 
-## JBang Setup Script (`scripts/SetupDemo.java`)
+## JBang Setup Script (`scripts/Setup.java`)
 
-Orchestrates Phase 3:
-1. Detects container runtime (Docker or Podman)
-2. Builds client images via Maven (`mvn package docker:build`)
-3. Loads images into minikube (`minikube image load`)
-4. Deploys client apps (`kubectl apply -k clients/deploy/`)
-5. Verifies Keycloak is reachable (acquires a test token)
+Orchestrates all three phases in a single invocation:
+1. Checks prerequisites (kubectl, cluster connectivity)
+2. Phase 1: Deploys operators + Keycloak via kustomize, configures groups scope via kcadm.sh
+3. Phase 2: Deploys Kafka + Console + topics via kustomize, annotates ingress for OIDC buffer size
+4. Phase 3: Detects container runtime (Docker/Podman), builds client images, loads into minikube, deploys clients
+5. Verifies Keycloak is reachable
 6. Prints access URLs and credentials
+
+Use `--skip-infra` to skip Phases 1+2 and only rebuild/deploy clients.
 
 ## Minikube Requirements
 
@@ -605,9 +606,9 @@ Note: Pin `?ref=main` to a specific release tag (e.g., `?ref=v1.0.0`) for stabil
 Create the Maven multi-module project with Fabric8 Docker plugin, OrderProducer.java, OrderConsumer.java, and Kubernetes deployment manifests.
 - **Files**: clients/
 
-### Step 9: Install/uninstall scripts + JBang setup
-Adapt the developer-quickstart install.sh. Create SetupDemo.java for Phase 3 orchestration.
-- **Files**: install.sh, uninstall.sh, scripts/SetupDemo.java
+### Step 9: JBang setup and teardown scripts
+Unified JBang scripts for setup (all 3 phases) and teardown.
+- **Files**: scripts/Setup.java, scripts/Teardown.java
 
 ### Step 10: README
 Document the demo setup, architecture, and walkthrough with screenshots.

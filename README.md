@@ -58,39 +58,37 @@ minikube start --memory=6144 --cpus=4
 minikube addons enable ingress
 ```
 
-### 2. Deploy the platform
+### 2. Deploy the full stack
 
 ```bash
-./install.sh
+jbang scripts/Setup.java
 ```
 
-This deploys in two phases:
-- **Phase 1**: Strimzi operator, Console operator, Keycloak (with realm auto-import)
+This runs all three phases:
+- **Phase 1**: Strimzi operator, Console operator, Keycloak (with realm auto-import + groups scope)
 - **Phase 2**: Kafka cluster (with OAuth listener + KeycloakAuthorizer), Console (with OIDC), topics
+- **Phase 3**: Build producer/consumer Java apps, load images into minikube, deploy
 
-### 3. Build and deploy client apps
-
+To rebuild and redeploy only the client apps (skipping infrastructure):
 ```bash
-jbang scripts/SetupDemo.java
+jbang scripts/Setup.java --skip-infra
 ```
 
-This builds the producer/consumer Java apps, loads images into minikube, and deploys them.
-
-### 4. Start minikube tunnel
+### 3. Start minikube tunnel
 
 In a separate terminal:
 ```bash
 minikube tunnel
 ```
 
-### 5. Access the demo
+### 4. Access the demo
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
 | Console | `https://console.<minikube-ip>.nip.io` | alice / alice-password **or** bob / bob-password |
 | Keycloak Admin | `http://keycloak.<minikube-ip>.nip.io` | admin / admin |
 
-> The IP is auto-detected from `minikube ip`. To override (e.g., for a remote cluster), set `NIP_IO_IP=<ip> ./install.sh`.
+> The IP is auto-detected from `minikube ip`. To override (e.g., for a remote cluster), set `NIP_IO_IP=<ip> jbang scripts/Setup.java`.
 
 Accept the self-signed certificate warning on first Console visit.
 
@@ -98,7 +96,7 @@ Accept the self-signed certificate warning on first Console visit.
 
 **As Bob**: Log in and see only `public.order-events`. The `pii.orders` topic is completely invisible.
 
-### 6. View client logs
+### 5. View client logs
 
 ```bash
 kubectl logs -f deployment/order-producer -n kafka
@@ -108,7 +106,7 @@ kubectl logs -f deployment/order-consumer -n kafka
 ## Cleanup
 
 ```bash
-./uninstall.sh
+jbang scripts/Teardown.java
 ```
 
 ## How It Works
@@ -133,7 +131,8 @@ See [docs/implementation-plan.md](docs/implementation-plan.md) for the full desi
 │   ├── base/                   # Phase 1: operators + Keycloak (remote quickstart refs)
 │   └── stack/                  # Phase 2: Kafka + Console OAuth patches
 ├── scripts/
-│   └── SetupDemo.java          # JBang script for client app deployment
-├── install.sh                  # Two-phase platform deployment
-└── uninstall.sh                # Full cleanup
+│   ├── Setup.java              # JBang script for full setup (all 3 phases)
+│   └── Teardown.java           # JBang script for full teardown
+└── docs/
+    └── implementation-plan.md  # Full design document with rationale
 ```
