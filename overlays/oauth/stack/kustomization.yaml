@@ -12,7 +12,6 @@ resources:
   - ../../../components/apicurio-registry
   # Secrets
   - console-oidc-secret.yaml
-  - uma-credentials-secret.yaml
   # Authorino instance + AuthConfig
   - authorino-cr.yaml
   - authconfig.yaml
