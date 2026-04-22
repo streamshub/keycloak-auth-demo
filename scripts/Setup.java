@@ -165,6 +165,11 @@ public class Setup implements Callable<Integer> {
         }
 
         info("Waiting for Authorino to be ready...");
+        // The Authorino operator needs a moment to create the deployment from the CR
+        int authorinoRetries = 30;
+        while (runSilent("kubectl", "get", "deployment/authorino", "-n", "kafka") != 0 && authorinoRetries-- > 0) {
+            Thread.sleep(2000);
+        }
         runChecked("authorino rollout",
             "kubectl", "rollout", "status", "deployment/authorino", "-n", "kafka",
             "--timeout=" + TIMEOUT);

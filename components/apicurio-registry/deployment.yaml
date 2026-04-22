@@ -36,7 +36,7 @@ spec:
           image: apicurio/apicurio-registry:3.0.6
           env:
             - name: APICURIO_STORAGE_KIND
-              value: mem
+              value: sql
             - name: QUARKUS_HTTP_HOST
               value: "127.0.0.1"
             - name: APICURIO_REST_MUTABILITY_ARTIFACT_VERSION_CONTENT_ENABLED
