@@ -30,6 +30,8 @@ spec:
               value: order-consumer-secret
             - name: GROUP_ID
               value: order-consumer-group
+            - name: REGISTRY_URL
+              value: http://apicurio-registry.kafka.svc.cluster.local:8443
           resources:
             requests:
               cpu: 100m

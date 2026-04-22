@@ -28,6 +28,8 @@ spec:
               value: order-producer
             - name: CLIENT_SECRET
               value: order-producer-secret
+            - name: REGISTRY_URL
+              value: http://apicurio-registry.kafka.svc.cluster.local:8443
           resources:
             requests:
               cpu: 100m
