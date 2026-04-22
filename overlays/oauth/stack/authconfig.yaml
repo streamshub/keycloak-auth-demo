@@ -10,7 +10,7 @@ spec:
   authentication:
     "keycloak":
       jwt:
-        issuerUrl: http://keycloak.keycloak.svc.cluster.local:8080/realms/kafka-oauth
+        issuerUrl: http://keycloak.127.0.0.1.nip.io/realms/kafka-oauth
 
   authorization:
     "uma-permissions":
