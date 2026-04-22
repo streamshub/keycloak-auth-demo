@@ -1,12 +1,15 @@
 package com.github.streamshub.demo;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.apicurio.registry.serde.avro.AvroKafkaSerializer;
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
 
+import java.io.InputStream;
 import java.time.Instant;
 import java.util.Properties;
 import java.util.Random;
@@ -45,15 +48,19 @@ public class OrderProducer {
         String tokenEndpoint = env("TOKEN_ENDPOINT", "http://localhost:8080/realms/kafka-oauth/protocol/openid-connect/token");
         String clientId = env("CLIENT_ID", "order-producer");
         String clientSecret = env("CLIENT_SECRET", "order-producer-secret");
+        String registryUrl = env("REGISTRY_URL", "http://localhost:8443");
+
+        Schema piiSchema = loadSchema("avro/pii-order.avsc");
+        Schema publicSchema = loadSchema("avro/public-order-event.avsc");
 
         Properties props = new Properties();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, AvroKafkaSerializer.class.getName());
         props.put(ProducerConfig.ACKS_CONFIG, "all");
         props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
 
-        // OAuth / SASL configuration
+        // OAuth / SASL configuration (for Kafka)
         props.put("security.protocol", "SASL_PLAINTEXT");
         props.put("sasl.mechanism", "OAUTHBEARER");
         props.put("sasl.jaas.config",
@@ -64,16 +71,24 @@ public class OrderProducer {
         props.put("sasl.login.callback.handler.class",
             "io.strimzi.kafka.oauth.client.JaasClientOauthLoginCallbackHandler");
 
-        ObjectMapper mapper = new ObjectMapper();
+        // Apicurio Registry configuration
+        props.put("apicurio.registry.url", registryUrl);
+        props.put("apicurio.registry.auto-register", "true");
+        props.put("apicurio.registry.artifact.group-id", "${topic}");
+        props.put("apicurio.auth.service.token.endpoint", tokenEndpoint);
+        props.put("apicurio.auth.client.id", clientId);
+        props.put("apicurio.auth.client.secret", clientSecret);
+
         Random random = new Random();
         AtomicInteger orderCounter = new AtomicInteger(1);
 
-        System.out.println("Starting OrderProducer...");
+        System.out.println("Starting OrderProducer (Avro)...");
         System.out.println("  Bootstrap: " + bootstrapServers);
+        System.out.println("  Registry: " + registryUrl);
         System.out.println("  Token endpoint: " + tokenEndpoint);
         System.out.println("  Client ID: " + clientId);
 
-        try (KafkaProducer<String, String> producer = new KafkaProducer<>(props)) {
+        try (KafkaProducer<String, GenericRecord> producer = new KafkaProducer<>(props)) {
             while (true) {
                 int idx = random.nextInt(NAMES.length);
                 String orderId = String.format("ORD-%05d", orderCounter.getAndIncrement());
@@ -81,8 +96,7 @@ public class OrderProducer {
                 String timestamp = Instant.now().toString();
                 String eventType = EVENT_TYPES[random.nextInt(EVENT_TYPES.length)];
 
-                // PII record (contains personal data)
-                ObjectNode piiRecord = mapper.createObjectNode();
+                GenericRecord piiRecord = new GenericData.Record(piiSchema);
                 piiRecord.put("orderId", orderId);
                 piiRecord.put("customerName", NAMES[idx]);
                 piiRecord.put("customerEmail", EMAILS[idx]);
@@ -90,7 +104,7 @@ public class OrderProducer {
                 piiRecord.put("amount", amount);
                 piiRecord.put("timestamp", timestamp);
 
-                producer.send(new ProducerRecord<>(PII_TOPIC, orderId, mapper.writeValueAsString(piiRecord)),
+                producer.send(new ProducerRecord<>(PII_TOPIC, orderId, piiRecord),
                     (metadata, exception) -> {
                         if (exception != null) {
                             System.err.println("Failed to send PII record: " + exception.getMessage());
@@ -99,14 +113,13 @@ public class OrderProducer {
                         }
                     });
 
-                // Public record (no personal data)
-                ObjectNode publicRecord = mapper.createObjectNode();
+                GenericRecord publicRecord = new GenericData.Record(publicSchema);
                 publicRecord.put("orderId", orderId);
                 publicRecord.put("amount", amount);
                 publicRecord.put("timestamp", timestamp);
                 publicRecord.put("eventType", eventType);
 
-                producer.send(new ProducerRecord<>(PUBLIC_TOPIC, orderId, mapper.writeValueAsString(publicRecord)),
+                producer.send(new ProducerRecord<>(PUBLIC_TOPIC, orderId, publicRecord),
                     (metadata, exception) -> {
                         if (exception != null) {
                             System.err.println("Failed to send public record: " + exception.getMessage());
@@ -117,6 +130,13 @@ public class OrderProducer {
 
                 Thread.sleep(1000);
             }
+        }
+    }
+
+    static Schema loadSchema(String resourcePath) throws Exception {
+        try (InputStream is = OrderProducer.class.getClassLoader().getResourceAsStream(resourcePath)) {
+            if (is == null) throw new RuntimeException("Schema not found: " + resourcePath);
+            return new Schema.Parser().parse(is);
         }
     }
 
