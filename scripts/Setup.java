@@ -86,6 +86,9 @@ public class Setup implements Callable<Integer> {
         runChecked("keycloak rollout",
             "kubectl", "rollout", "status", "deployment/keycloak",
             "-n", "keycloak", "--timeout=" + TIMEOUT);
+        runChecked("authorino operator rollout",
+            "kubectl", "rollout", "status", "deployment/authorino-operator",
+            "-n", "authorino-operator", "--timeout=" + TIMEOUT);
 
         info("Phase 1 complete: operators and Keycloak are ready");
     }
@@ -160,6 +163,16 @@ public class Setup implements Callable<Integer> {
                 "-n", "streamshub-console", "--for=condition=Ready", "--timeout=" + TIMEOUT) != 0) {
             warn("Console readiness check timed out - it may still be starting");
         }
+
+        info("Waiting for Authorino to be ready...");
+        runChecked("authorino rollout",
+            "kubectl", "rollout", "status", "deployment/authorino", "-n", "kafka",
+            "--timeout=" + TIMEOUT);
+
+        info("Waiting for Apicurio Registry to be ready...");
+        runChecked("apicurio-registry rollout",
+            "kubectl", "rollout", "status", "deployment/apicurio-registry", "-n", "kafka",
+            "--timeout=" + TIMEOUT);
 
         // OIDC tokens with Keycloak Authorization Services grants exceed nginx's default 4KB proxy buffer
         runCommand("kubectl", "annotate", "ingress",
@@ -451,6 +464,8 @@ public class Setup implements Callable<Integer> {
         info("     - Bob (public only):    bob / bob-password");
         info("  3. Keycloak admin:         http://keycloak." + nipIoIp + ".nip.io");
         info("     - Admin credentials:    admin / admin");
+        info("  4. Apicurio Registry:      http://apicurio-registry." + nipIoIp + ".nip.io");
+        info("     - Uses same alice/bob credentials");
         info("");
         info("View client logs:");
         info("  kubectl logs -f deployment/order-producer -n kafka");
