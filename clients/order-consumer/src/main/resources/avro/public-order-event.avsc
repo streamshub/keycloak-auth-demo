@@ -1,0 +1,11 @@
+{
+  "type": "record",
+  "name": "PublicOrderEvent",
+  "namespace": "com.github.streamshub.demo",
+  "fields": [
+    { "name": "orderId", "type": "string" },
+    { "name": "amount", "type": "double" },
+    { "name": "timestamp", "type": "string" },
+    { "name": "eventType", "type": "string" }
+  ]
+}

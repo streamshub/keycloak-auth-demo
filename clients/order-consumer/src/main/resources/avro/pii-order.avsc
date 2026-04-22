@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "PiiOrder",
+  "namespace": "com.github.streamshub.demo",
+  "fields": [
+    { "name": "orderId", "type": "string" },
+    { "name": "customerName", "type": "string" },
+    { "name": "customerEmail", "type": "string" },
+    { "name": "customerAddress", "type": "string" },
+    { "name": "amount", "type": "double" },
+    { "name": "timestamp", "type": "string" }
+  ]
+}
