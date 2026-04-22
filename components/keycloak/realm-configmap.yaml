@@ -440,22 +440,20 @@ data:
             ],
             "resources": [
               {
-                "name": "group:pii.orders",
+                "name": "group:pii",
                 "type": "registry-group",
                 "ownerManagedAccess": false,
-                "displayName": "PII orders schema group",
-                "uris": ["/apis/registry/v3/groups/pii.orders/*"],
+                "displayName": "PII schema groups (pii.*)",
                 "scopes": [
                   { "name": "read" },
                   { "name": "write" }
                 ]
               },
               {
-                "name": "group:public.order-events",
+                "name": "group:public",
                 "type": "registry-group",
                 "ownerManagedAccess": false,
-                "displayName": "Public order events schema group",
-                "uris": ["/apis/registry/v3/groups/public.order-events/*"],
+                "displayName": "Public schema groups (public.*)",
                 "scopes": [
                   { "name": "read" },
                   { "name": "write" }
@@ -505,7 +503,7 @@ data:
                 "logic": "POSITIVE",
                 "decisionStrategy": "UNANIMOUS",
                 "config": {
-                  "resources": "[\"group:pii.orders\",\"group:public.order-events\"]",
+                  "resources": "[\"group:pii\",\"group:public\"]",
                   "applyPolicies": "[\"Data Analyst\"]"
                 }
               },
@@ -515,7 +513,7 @@ data:
                 "logic": "POSITIVE",
                 "decisionStrategy": "UNANIMOUS",
                 "config": {
-                  "resources": "[\"group:public.order-events\"]",
+                  "resources": "[\"group:public\"]",
                   "scopes": "[\"read\"]",
                   "applyPolicies": "[\"Business Analyst\"]"
                 }
@@ -526,7 +524,7 @@ data:
                 "logic": "POSITIVE",
                 "decisionStrategy": "UNANIMOUS",
                 "config": {
-                  "resources": "[\"group:pii.orders\",\"group:public.order-events\"]",
+                  "resources": "[\"group:pii\",\"group:public\"]",
                   "applyPolicies": "[\"Producer\"]"
                 }
               },
@@ -536,7 +534,7 @@ data:
                 "logic": "POSITIVE",
                 "decisionStrategy": "UNANIMOUS",
                 "config": {
-                  "resources": "[\"group:pii.orders\",\"group:public.order-events\"]",
+                  "resources": "[\"group:pii\",\"group:public\"]",
                   "scopes": "[\"read\"]",
                   "applyPolicies": "[\"Consumer\"]"
                 }
