@@ -1,5 +1,7 @@
 package com.github.streamshub.demo;
 
+import io.apicurio.registry.serde.avro.AvroKafkaDeserializer;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -20,15 +22,16 @@ public class OrderConsumer {
         String clientId = env("CLIENT_ID", "order-consumer");
         String clientSecret = env("CLIENT_SECRET", "order-consumer-secret");
         String groupId = env("GROUP_ID", "order-consumer-group");
+        String registryUrl = env("REGISTRY_URL", "http://localhost:8443");
 
         Properties props = new Properties();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, AvroKafkaDeserializer.class.getName());
         props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
-        // OAuth / SASL configuration
+        // OAuth / SASL configuration (for Kafka)
         props.put("security.protocol", "SASL_PLAINTEXT");
         props.put("sasl.mechanism", "OAUTHBEARER");
         props.put("sasl.jaas.config",
@@ -39,17 +42,25 @@ public class OrderConsumer {
         props.put("sasl.login.callback.handler.class",
             "io.strimzi.kafka.oauth.client.JaasClientOauthLoginCallbackHandler");
 
-        System.out.println("Starting OrderConsumer...");
+        // Apicurio Registry configuration
+        props.put("apicurio.registry.url", registryUrl);
+        props.put("apicurio.registry.artifact.group-id", "${topic}");
+        props.put("apicurio.auth.service.token.endpoint", tokenEndpoint);
+        props.put("apicurio.auth.client.id", clientId);
+        props.put("apicurio.auth.client.secret", clientSecret);
+
+        System.out.println("Starting OrderConsumer (Avro)...");
         System.out.println("  Bootstrap: " + bootstrapServers);
+        System.out.println("  Registry: " + registryUrl);
         System.out.println("  Token endpoint: " + tokenEndpoint);
         System.out.println("  Client ID: " + clientId);
         System.out.println("  Group ID: " + groupId);
 
-        try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props)) {
+        try (KafkaConsumer<String, GenericRecord> consumer = new KafkaConsumer<>(props)) {
             consumer.subscribe(List.of(PII_TOPIC, PUBLIC_TOPIC));
 
             while (true) {
-                ConsumerRecords<String, String> records = consumer.poll(Duration.ofSeconds(1));
+                ConsumerRecords<String, GenericRecord> records = consumer.poll(Duration.ofSeconds(1));
                 records.forEach(record -> {
                     System.out.printf("[%s] key=%s value=%s%n",
                         record.topic(), record.key(), record.value());
