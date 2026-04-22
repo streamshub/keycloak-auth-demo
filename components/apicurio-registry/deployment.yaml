@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apicurio-registry
+  namespace: kafka
+  labels:
+    app: apicurio-registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apicurio-registry
+  template:
+    metadata:
+      labels:
+        app: apicurio-registry
+    spec:
+      containers:
+        - name: envoy
+          image: envoyproxy/envoy:v1.32-latest
+          ports:
+            - containerPort: 8443
+              name: http
+          volumeMounts:
+            - name: envoy-config
+              mountPath: /etc/envoy
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+
+        - name: registry
+          image: apicurio/apicurio-registry:3.0.6
+          env:
+            - name: APICURIO_STORAGE_KIND
+              value: mem
+            - name: QUARKUS_HTTP_HOST
+              value: "127.0.0.1"
+            - name: APICURIO_REST_MUTABILITY_ARTIFACT_VERSION_CONTENT_ENABLED
+              value: "true"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+        - name: registry-ui
+          image: apicurio/apicurio-registry-ui:3.0.6
+          env:
+            - name: REGISTRY_API_URL
+              value: "http://apicurio-registry.127.0.0.1.nip.io/apis/registry/v3"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+
+      volumes:
+        - name: envoy-config
+          configMap:
+            name: apicurio-envoy-config

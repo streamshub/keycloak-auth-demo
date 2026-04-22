@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: kafka
+
+resources:
+  - deployment.yaml
+  - envoy-configmap.yaml
+  - service.yaml
+  - ingress.yaml
+  - networkpolicy.yaml

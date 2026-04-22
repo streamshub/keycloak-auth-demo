@@ -1,0 +1,15 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: apicurio-registry-ingress
+  namespace: kafka
+spec:
+  podSelector:
+    matchLabels:
+      app: apicurio-registry
+  ingress:
+    - ports:
+        - port: 8443
+          protocol: TCP
+  policyTypes:
+    - Ingress
