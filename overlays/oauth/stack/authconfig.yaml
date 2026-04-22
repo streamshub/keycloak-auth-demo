@@ -1,0 +1,104 @@
+apiVersion: authorino.kuadrant.io/v1beta3
+kind: AuthConfig
+metadata:
+  name: apicurio-registry-protection
+  namespace: kafka
+spec:
+  hosts:
+    - apicurio-registry.127.0.0.1.nip.io
+
+  authentication:
+    "keycloak":
+      jwt:
+        issuerUrl: http://keycloak.keycloak.svc.cluster.local:8080/realms/kafka-oauth
+      overrides:
+        "access_token":
+          expression: context.request.http.headers["authorization"].split(" ")[1]
+
+  authorization:
+    "uma-permissions":
+      opa:
+        rego: |
+          package registry_authz
+
+          import rego.v1
+
+          keycloak_url := "http://keycloak.keycloak.svc.cluster.local:8080/realms/kafka-oauth"
+
+          # Acquire PAT via apicurio-registry client credentials
+          pat := http.send({
+            "url": concat("", [keycloak_url, "/protocol/openid-connect/token"]),
+            "method": "POST",
+            "headers": {"Content-Type": "application/x-www-form-urlencoded"},
+            "raw_body": "grant_type=client_credentials&client_id=apicurio-registry&client_secret=apicurio-registry-secret",
+            "cache": true
+          }).body.access_token
+
+          # Lookup resource by request URI
+          request_path := input.context.request.http.path
+          resource_ids := http.send({
+            "url": concat("", [keycloak_url, "/authz/protection/resource_set?matchingUri=true&uri=", request_path]),
+            "method": "GET",
+            "headers": {"Authorization": concat(" ", ["Bearer ", pat])},
+            "cache": true
+          }).body
+
+          resource_id := resource_ids[0]
+
+          # Map HTTP method to scope
+          scope_map := {"GET": "read", "HEAD": "read", "POST": "write", "PUT": "write", "DELETE": "write"}
+          scope := scope_map[input.context.request.http.method]
+
+          # Get user's access token
+          access_token := input.auth.identity.access_token
+
+          # Request UMA ticket for the resource + scope
+          ticket := http.send({
+            "url": concat("", [keycloak_url, "/authz/protection/permission"]),
+            "method": "POST",
+            "headers": {
+              "Authorization": concat(" ", ["Bearer ", pat]),
+              "Content-Type": "application/json"
+            },
+            "raw_body": concat("", ["[{\"resource_id\":\"", resource_id, "\",\"resource_scopes\":[\"", scope, "\"]}]"])
+          }).body.ticket
+
+          # Exchange ticket for RPT using user's access token
+          rpt_response := http.send({
+            "url": concat("", [keycloak_url, "/protocol/openid-connect/token"]),
+            "method": "POST",
+            "headers": {
+              "Authorization": concat(" ", ["Bearer ", access_token]),
+              "Content-Type": "application/x-www-form-urlencoded"
+            },
+            "raw_body": concat("", ["grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Auma-ticket&ticket=", ticket])
+          })
+
+          rpt := rpt_response.body.access_token
+
+          # Validate RPT contains the required permission
+          allow if {
+            rpt_response.status_code == 200
+            permissions := io.jwt.decode(rpt)[1].authorization.permissions
+            some i
+            permissions[i].rsid == resource_id
+            some j
+            permissions[i].scopes[j] == scope
+          }
+
+          # Allow requests that don't match any registered resource (listings, health, IDs)
+          allow if {
+            count(resource_ids) == 0
+          }
+        allValues: true
+
+  response:
+    success:
+      headers:
+        "x-registry-rpt":
+          when:
+            - selector: auth.authorization.uma-permissions.rpt
+              operator: neq
+              value: ""
+          plain:
+            expression: auth.authorization["uma-permissions"].rpt

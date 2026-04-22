@@ -1,0 +1,16 @@
+apiVersion: operator.authorino.kuadrant.io/v1beta1
+kind: Authorino
+metadata:
+  name: authorino
+  namespace: kafka
+spec:
+  replicas: 1
+  clusterWide: false
+  listener:
+    ports:
+      grpc: 50051
+    tls:
+      enabled: false
+  oidcServer:
+    tls:
+      enabled: false
