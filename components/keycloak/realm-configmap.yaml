@@ -38,6 +38,12 @@ data:
               "name": "uma_protection",
               "clientRole": true
             }
+          ],
+          "apicurio-registry": [
+            {
+              "name": "uma_protection",
+              "clientRole": true
+            }
           ]
         }
       },
@@ -109,6 +115,12 @@ data:
           "enabled": true,
           "serviceAccountClientId": "streamshub-console",
           "realmRoles": ["offline_access", "Data Analyst"]
+        },
+        {
+          "username": "service-account-apicurio-registry",
+          "enabled": true,
+          "serviceAccountClientId": "apicurio-registry",
+          "realmRoles": ["offline_access"]
         }
       ],
 
@@ -403,6 +415,164 @@ data:
           "serviceAccountsEnabled": true,
           "publicClient": false,
           "fullScopeAllowed": true
+        },
+        {
+          "clientId": "apicurio-registry",
+          "enabled": true,
+          "clientAuthenticatorType": "client-secret",
+          "secret": "apicurio-registry-secret",
+          "bearerOnly": false,
+          "consentRequired": false,
+          "standardFlowEnabled": false,
+          "implicitFlowEnabled": false,
+          "directAccessGrantsEnabled": true,
+          "serviceAccountsEnabled": true,
+          "authorizationServicesEnabled": true,
+          "publicClient": false,
+          "fullScopeAllowed": true,
+          "authorizationSettings": {
+            "allowRemoteResourceManagement": true,
+            "policyEnforcementMode": "ENFORCING",
+            "decisionStrategy": "AFFIRMATIVE",
+            "scopes": [
+              { "name": "read" },
+              { "name": "write" }
+            ],
+            "resources": [
+              {
+                "name": "group:pii.orders",
+                "type": "registry-group",
+                "ownerManagedAccess": false,
+                "displayName": "PII orders schema group",
+                "uris": ["/apis/registry/v3/groups/pii.orders/*"],
+                "scopes": [
+                  { "name": "read" },
+                  { "name": "write" }
+                ]
+              },
+              {
+                "name": "group:public.order-events",
+                "type": "registry-group",
+                "ownerManagedAccess": false,
+                "displayName": "Public order events schema group",
+                "uris": ["/apis/registry/v3/groups/public.order-events/*"],
+                "scopes": [
+                  { "name": "read" },
+                  { "name": "write" }
+                ]
+              }
+            ],
+            "policies": [
+              {
+                "name": "Data Analyst",
+                "type": "role",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "roles": "[{\"id\":\"Data Analyst\",\"required\":true}]"
+                }
+              },
+              {
+                "name": "Business Analyst",
+                "type": "role",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "roles": "[{\"id\":\"Business Analyst\",\"required\":true}]"
+                }
+              },
+              {
+                "name": "Producer",
+                "type": "role",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "roles": "[{\"id\":\"Producer\",\"required\":true}]"
+                }
+              },
+              {
+                "name": "Consumer",
+                "type": "role",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "roles": "[{\"id\":\"Consumer\",\"required\":true}]"
+                }
+              },
+              {
+                "name": "Data Analysts: all schema groups",
+                "type": "resource",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "resources": "[\"group:pii.orders\",\"group:public.order-events\"]",
+                  "applyPolicies": "[\"Data Analyst\"]"
+                }
+              },
+              {
+                "name": "Business Analysts: public schemas only",
+                "type": "scope",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "resources": "[\"group:public.order-events\"]",
+                  "scopes": "[\"read\"]",
+                  "applyPolicies": "[\"Business Analyst\"]"
+                }
+              },
+              {
+                "name": "Producers: write all schema groups",
+                "type": "resource",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "resources": "[\"group:pii.orders\",\"group:public.order-events\"]",
+                  "applyPolicies": "[\"Producer\"]"
+                }
+              },
+              {
+                "name": "Consumers: read all schema groups",
+                "type": "scope",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                  "resources": "[\"group:pii.orders\",\"group:public.order-events\"]",
+                  "scopes": "[\"read\"]",
+                  "applyPolicies": "[\"Consumer\"]"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "clientId": "apicurio-registry-ui",
+          "enabled": true,
+          "clientAuthenticatorType": "client-secret",
+          "bearerOnly": false,
+          "consentRequired": false,
+          "standardFlowEnabled": true,
+          "implicitFlowEnabled": false,
+          "directAccessGrantsEnabled": true,
+          "serviceAccountsEnabled": false,
+          "publicClient": true,
+          "fullScopeAllowed": true,
+          "redirectUris": ["http://apicurio-registry.127.0.0.1.nip.io/*"],
+          "webOrigins": ["http://apicurio-registry.127.0.0.1.nip.io"],
+          "protocolMappers": [
+            {
+              "name": "Groups Mapper",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-group-membership-mapper",
+              "consentRequired": false,
+              "config": {
+                "full.path": "true",
+                "userinfo.token.claim": "true",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "claim.name": "groups"
+              }
+            }
+          ]
         }
       ]
     }
