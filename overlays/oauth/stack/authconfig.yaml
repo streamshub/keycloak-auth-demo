@@ -11,9 +11,6 @@ spec:
     "keycloak":
       jwt:
         issuerUrl: http://keycloak.keycloak.svc.cluster.local:8080/realms/kafka-oauth
-      overrides:
-        "access_token":
-          expression: context.request.http.headers["authorization"].split(" ")[1]
 
   authorization:
     "uma-permissions":
@@ -49,8 +46,8 @@ spec:
           scope_map := {"GET": "read", "HEAD": "read", "POST": "write", "PUT": "write", "DELETE": "write"}
           scope := scope_map[input.context.request.http.method]
 
-          # Get user's access token
-          access_token := input.auth.identity.access_token
+          # Get user's access token from the Authorization header
+          access_token := trim_prefix(input.context.request.http.headers.authorization, "Bearer ")
 
           # Request UMA ticket for the resource + scope
           ticket := http.send({
