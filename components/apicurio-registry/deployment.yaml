@@ -39,6 +39,8 @@ spec:
               value: sql
             - name: QUARKUS_HTTP_HOST
               value: "127.0.0.1"
+            - name: QUARKUS_HTTP_PORT
+              value: "8081"
             - name: APICURIO_REST_MUTABILITY_ARTIFACT_VERSION_CONTENT_ENABLED
               value: "true"
           resources:

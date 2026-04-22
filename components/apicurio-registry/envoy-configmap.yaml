@@ -71,7 +71,7 @@ data:
                       address:
                         socket_address:
                           address: 127.0.0.1
-                          port_value: 8080
+                          port_value: 8081
 
         - name: registry-ui
           type: STATIC
