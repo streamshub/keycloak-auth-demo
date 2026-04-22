@@ -8,6 +8,8 @@ resources:
   - https://github.com/streamshub/developer-quickstart//components/core/base/streamshub-console-operator?ref=main
   # Keycloak
   - ../../../components/keycloak
+  # Authorino operator
+  - ../../../components/authorino
 
 patches:
   # Remove Console ServiceMonitor (requires Prometheus CRD not installed in base)

@@ -8,8 +8,14 @@ resources:
   - https://github.com/streamshub/developer-quickstart//components/core/stack/streamshub-console?ref=main
   # Topics
   - ../../../components/topics
+  # Apicurio Registry
+  - ../../../components/apicurio-registry
   # Secrets
   - console-oidc-secret.yaml
+  - uma-credentials-secret.yaml
+  # Authorino instance + AuthConfig
+  - authorino-cr.yaml
+  - authconfig.yaml
 
 patches:
   - path: kafka-oauth-patch.yaml
