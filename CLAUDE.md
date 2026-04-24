@@ -37,10 +37,11 @@ No test suite exists. Verification is manual: check logs, log in as alice/bob in
 
 ## Architecture
 
-Two-layer authorization enforced by a single Keycloak realm (`kafka-oauth`):
+Three-layer authorization enforced by a single Keycloak realm (`kafka-oauth`):
 
 1. **Kafka broker** (primary enforcement): `type: custom` OAUTHBEARER listener with `KeycloakAuthorizer`. Token validation via JWKS endpoint. Authorization grants checked against Keycloak Authorization Services resources/policies/permissions.
 2. **StreamsHub Console** (UI filtering): OIDC login, group-based RBAC mapping (`/data-analysts` -> full access, `/business-analysts` -> `public.*` only). Forwards user OIDC tokens to Kafka as SASL/OAUTHBEARER credentials.
+3. **Apicurio Registry** (schema access): Envoy + Authorino proxy enforces per-group schema access via Keycloak Authorization Services. Prefix-level matching (`group:pii`, `group:public`) so new topics inherit policies automatically.
 
 Service accounts (`order-producer`, `order-consumer`) authenticate via client credentials OAuth flow using `strimzi-kafka-oauth-client`.
 
@@ -51,15 +52,22 @@ Service accounts (`order-producer`, `order-consumer`) authenticate via client cr
 - **Nip.io DNS**: `*.<ip>.nip.io` wildcard avoids `/etc/hosts` edits. The IP is auto-detected from `minikube ip` at deploy time (falls back to `127.0.0.1` for docker driver). Override with `NIP_IO_IP` env var.
 - **Dual Keycloak URLs**: External hostname for browser redirects (`KC_HOSTNAME`), internal service DNS for server-side token validation (`KC_HOSTNAME_BACKCHANNEL_DYNAMIC=true`).
 - **Topic-level invisibility**: Bob has zero Keycloak grants on `pii.*` resources, so topics are absent from metadata responses entirely.
+- **TLS via cert-manager**: Self-signed CA issuer chain provides HTTPS for all ingresses. Required because Apicurio Registry UI uses PKCE, which needs `crypto.subtle` (HTTPS-only).
+- **Apicurio Registry authorization proxy**: Envoy + Authorino proxy delegates authorization to Keycloak Authorization Services since Registry lacks native fine-grained auth.
+- **Prefix-level authorization**: Registry resources use topic name prefixes (`group:pii`, `group:public`) rather than per-topic resources, so new topics automatically inherit policies.
 
 ## Repository Layout
 
-- `clients/` -- Java 21 Maven project. Parent POM at `clients/pom.xml`. Modules: `order-producer`, `order-consumer`. Uses maven-shade-plugin (fat JARs) + Fabric8 docker-maven-plugin (OCI images on `eclipse-temurin:21-jre-alpine`).
+- `clients/` -- Java 21 Maven project. Parent POM at `clients/pom.xml`. Modules: `common`, `order-producer`, `order-consumer`. Uses maven-shade-plugin (fat JARs) + Fabric8 docker-maven-plugin (OCI images on `eclipse-temurin:21-jre-alpine`).
+- `clients/common/` -- Shared utilities module (TopicGroupStrategy for Apicurio Registry artifact grouping).
 - `clients/deploy/` -- Kubernetes Deployments for the client pods (kustomize).
 - `components/keycloak/` -- Keycloak deployment manifests + realm JSON ConfigMap. The realm JSON in `realm-configmap.yaml` defines all users, clients, roles, groups, authorization resources, policies, and permissions.
+- `components/authorino/` -- Authorino Operator kustomization wrapper (remote install).
+- `components/apicurio-registry/` -- Registry deployment (3-container pod: Envoy + Registry + UI), ingress, Envoy config, NetworkPolicy.
+- `components/cert-manager/` -- Self-signed CA issuer chain for TLS on all ingresses.
 - `components/topics/` -- KafkaTopic CRs (`pii.orders`, `public.order-events`).
-- `overlays/oauth/base/` -- Kustomize overlay for Phase 1 (operators + Keycloak).
-- `overlays/oauth/stack/` -- Kustomize overlay for Phase 2 (Kafka + Console operands + OAuth patches). Contains the critical `kafka-oauth-patch.yaml` and `console-oauth-patch.yaml`.
+- `overlays/oauth/base/` -- Kustomize overlay for Phase 1 (operators + Keycloak + Authorino Operator + cert-manager).
+- `overlays/oauth/stack/` -- Kustomize overlay for Phase 2 (Kafka + Console + Registry + AuthConfig + OAuth patches).
 - `scripts/Setup.java` -- JBang script for full demo setup (all 3 phases). Supports `--skip-infra` to only rebuild/deploy clients.
 - `scripts/Teardown.java` -- JBang script for full teardown (reverse order).
 - `docs/implementation-plan.md` -- Full design document with rationale for all decisions.
@@ -69,4 +77,6 @@ Service accounts (`order-producer`, `order-consumer`) authenticate via client cr
 - Java 21, Maven 3.9+
 - Kafka clients 3.9.0, Strimzi OAuth 0.16.0
 - Keycloak 26.2.4
+- Apicurio Registry 3.2.1, Avro 1.12.0
+- cert-manager v1.20.2, Envoy v1.32
 - Minikube with ingress addon, 6GB RAM, 4 CPUs

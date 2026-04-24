@@ -73,7 +73,7 @@ jbang scripts/Setup.java
 ```
 
 This runs all three phases:
-- **Phase 1**: Strimzi operator, Console operator, Keycloak (with realm auto-import + groups scope)
+- **Phase 1**: Strimzi operator, Console operator, cert-manager, Authorino operator, Keycloak (with realm auto-import + groups scope)
 - **Phase 2**: Kafka cluster (with OAuth listener + KeycloakAuthorizer), Console (with OIDC), topics
 - **Phase 3**: Build producer/consumer Java apps, load images into minikube, deploy
 
@@ -94,12 +94,12 @@ minikube tunnel
 | Service | URL | Credentials |
 |---------|-----|-------------|
 | Console | `https://console.<minikube-ip>.nip.io` | alice / alice-password **or** bob / bob-password |
-| Apicurio Registry | `http://apicurio-registry.<minikube-ip>.nip.io` | alice / alice-password **or** bob / bob-password |
-| Keycloak Admin | `http://keycloak.<minikube-ip>.nip.io` | admin / admin |
+| Apicurio Registry | `https://apicurio-registry.<minikube-ip>.nip.io` | alice / alice-password **or** bob / bob-password |
+| Keycloak Admin | `https://keycloak.<minikube-ip>.nip.io` | admin / admin |
 
 > The IP is auto-detected from `minikube ip`. To override (e.g., for a remote cluster), set `NIP_IO_IP=<ip> jbang scripts/Setup.java`.
 
-Accept the self-signed certificate warning on first Console visit.
+Accept the self-signed certificate warning on first visit to each service (Console, Keycloak, Apicurio Registry).
 
 **As Alice**: Log in and see both `pii.orders` (with customer names, emails, addresses) and `public.order-events`.
 
@@ -201,13 +201,15 @@ See [docs/implementation-plan.md](docs/implementation-plan.md) for the full desi
 
 ```
 ├── clients/                    # Java producer/consumer apps (Maven + Fabric8)
+│   ├── common/                 # Shared utilities (TopicGroupStrategy)
 │   ├── order-producer/         # Writes PII + public Avro records via registry
 │   ├── order-consumer/         # Reads and deserializes Avro from both topics
 │   └── deploy/                 # Kubernetes Deployment manifests
 ├── components/
 │   ├── keycloak/               # Keycloak deployment + realm JSON
 │   ├── authorino/              # Authorino Operator install
-│   ├── apicurio-registry/      # Registry + Envoy sidecar + NetworkPolicy
+│   ├── apicurio-registry/      # Registry + Envoy sidecar + Authorino proxy
+│   ├── cert-manager/           # CA issuer chain for TLS on all ingresses
 │   └── topics/                 # KafkaTopic resources
 ├── overlays/oauth/
 │   ├── base/                   # Phase 1: operators + Keycloak + Authorino Operator
