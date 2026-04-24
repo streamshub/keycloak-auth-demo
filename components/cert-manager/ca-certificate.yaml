@@ -1,0 +1,16 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: nip-io-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: "nip.io Demo CA"
+  secretName: nip-io-ca-secret
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: selfsigned-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io

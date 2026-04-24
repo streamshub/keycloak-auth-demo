@@ -28,6 +28,8 @@ public class Setup implements Callable<Integer> {
         "streamshub-oauth-demo/order-consumer:latest"
     };
 
+    static final String CERT_MANAGER_VERSION = "v1.20.2";
+
     static final String KC_POD = "deployment/keycloak";
     static final String KC_NS = "keycloak";
 
@@ -57,9 +59,14 @@ public class Setup implements Callable<Integer> {
             checkPrerequisites();
             waitForIngressWebhook();
 
+            installCertManager();
+            waitForCertManager();
+            applyCaIssuer(projectRoot);
+
             phase1(projectRoot, nipIoIp);
             configureKeycloakGroupsScope();
             phase2(projectRoot, nipIoIp);
+            patchConsoleIngressTls(nipIoIp);
         } else {
             info("Skipping infrastructure (Phase 1+2) -- --skip-infra specified");
         }
@@ -179,11 +186,6 @@ public class Setup implements Callable<Integer> {
             "kubectl", "rollout", "status", "deployment/apicurio-registry", "-n", "kafka",
             "--timeout=" + TIMEOUT);
 
-        // OIDC tokens with Keycloak Authorization Services grants exceed nginx's default 4KB proxy buffer
-        runCommand("kubectl", "annotate", "ingress",
-            "streamshub-console-console-ingress", "-n", "streamshub-console",
-            "nginx.ingress.kubernetes.io/proxy-buffer-size=16k", "--overwrite");
-
         info("Phase 2 complete");
     }
 
@@ -249,6 +251,55 @@ public class Setup implements Callable<Integer> {
                 "-l", "app.kubernetes.io/component=controller",
                 "--for=condition=Ready", "--timeout=" + TIMEOUT);
         }
+    }
+
+    // ── cert-manager + TLS ──────────────────────────────────────────────
+
+    static void installCertManager() throws Exception {
+        info("");
+        info("=== Installing cert-manager " + CERT_MANAGER_VERSION + " ===");
+        String url = "https://github.com/cert-manager/cert-manager/releases/download/"
+            + CERT_MANAGER_VERSION + "/cert-manager.yaml";
+        runChecked("cert-manager install", "kubectl", "apply", "-f", url);
+        info("cert-manager manifests applied");
+    }
+
+    static void waitForCertManager() throws Exception {
+        info("Waiting for cert-manager to be ready...");
+        runChecked("cert-manager webhook rollout",
+            "kubectl", "rollout", "status", "deployment/cert-manager-webhook",
+            "-n", "cert-manager", "--timeout=" + TIMEOUT);
+        info("cert-manager is ready");
+    }
+
+    static void applyCaIssuer(Path projectRoot) throws Exception {
+        info("Creating CA issuer chain...");
+        runChecked("CA issuer",
+            "kubectl", "apply", "-k",
+            projectRoot.resolve("components/cert-manager").toString());
+        info("CA issuer chain created");
+    }
+
+    static void patchConsoleIngressTls(String nipIoIp) throws Exception {
+        info("Patching Console ingress with TLS and annotations...");
+        String consoleHost = "console." + nipIoIp + ".nip.io";
+
+        runCommand("kubectl", "annotate", "ingress",
+            "streamshub-console-console-ingress", "-n", "streamshub-console",
+            "nginx.ingress.kubernetes.io/proxy-buffer-size=16k",
+            "nginx.ingress.kubernetes.io/ssl-redirect=true",
+            "cert-manager.io/cluster-issuer=nip-io-ca-issuer",
+            "--overwrite");
+
+        String patchJson = "[{\"op\":\"add\",\"path\":\"/spec/tls\","
+            + "\"value\":[{\"hosts\":[\"" + consoleHost + "\"],"
+            + "\"secretName\":\"console-tls\"}]}]";
+        runChecked("console ingress TLS patch",
+            "kubectl", "patch", "ingress",
+            "streamshub-console-console-ingress", "-n", "streamshub-console",
+            "--type=json", "-p", patchJson);
+
+        info("Console ingress patched");
     }
 
     // ── Kustomize + apply pipeline ─────────────────────────────────────
@@ -467,10 +518,13 @@ public class Setup implements Callable<Integer> {
         info("  2. Open Console:           https://console." + nipIoIp + ".nip.io");
         info("     - Alice (PII access):   alice / alice-password");
         info("     - Bob (public only):    bob / bob-password");
-        info("  3. Keycloak admin:         http://keycloak." + nipIoIp + ".nip.io");
+        info("  3. Keycloak admin:         https://keycloak." + nipIoIp + ".nip.io");
         info("     - Admin credentials:    admin / admin");
-        info("  4. Apicurio Registry:      http://apicurio-registry." + nipIoIp + ".nip.io");
+        info("  4. Apicurio Registry:      https://apicurio-registry." + nipIoIp + ".nip.io");
         info("     - Uses same alice/bob credentials");
+        info("");
+        info("  NOTE: The demo uses a self-signed TLS certificate.");
+        info("        Accept the browser security warning to proceed.");
         info("");
         info("View client logs:");
         info("  kubectl logs -f deployment/order-producer -n kafka");

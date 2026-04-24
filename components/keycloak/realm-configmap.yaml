@@ -554,8 +554,8 @@ data:
           "serviceAccountsEnabled": false,
           "publicClient": true,
           "fullScopeAllowed": true,
-          "redirectUris": ["http://apicurio-registry.127.0.0.1.nip.io/*"],
-          "webOrigins": ["http://apicurio-registry.127.0.0.1.nip.io"],
+          "redirectUris": ["https://apicurio-registry.127.0.0.1.nip.io/*"],
+          "webOrigins": ["https://apicurio-registry.127.0.0.1.nip.io"],
           "protocolMappers": [
             {
               "name": "Groups Mapper",

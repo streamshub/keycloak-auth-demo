@@ -31,7 +31,7 @@ spec:
                   name: keycloak-admin
                   key: password
             - name: KC_HOSTNAME
-              value: "http://keycloak.127.0.0.1.nip.io"
+              value: "https://keycloak.127.0.0.1.nip.io"
             - name: KC_HOSTNAME_BACKCHANNEL_DYNAMIC
               value: "true"
             - name: KC_HTTP_ENABLED

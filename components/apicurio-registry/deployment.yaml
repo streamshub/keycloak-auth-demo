@@ -55,15 +55,15 @@ spec:
           image: apicurio/apicurio-registry-ui:3.2.1
           env:
             - name: REGISTRY_API_URL
-              value: "http://apicurio-registry.127.0.0.1.nip.io/apis/registry/v3"
+              value: "https://apicurio-registry.127.0.0.1.nip.io/apis/registry/v3"
             - name: REGISTRY_AUTH_TYPE
               value: "oidc"
             - name: REGISTRY_AUTH_URL
-              value: "http://keycloak.127.0.0.1.nip.io/realms/kafka-oauth"
+              value: "https://keycloak.127.0.0.1.nip.io/realms/kafka-oauth"
             - name: REGISTRY_AUTH_CLIENT_ID
               value: "apicurio-registry-ui"
             - name: REGISTRY_AUTH_REDIRECT_URL
-              value: "http://apicurio-registry.127.0.0.1.nip.io"
+              value: "https://apicurio-registry.127.0.0.1.nip.io"
           resources:
             requests:
               cpu: 50m
