@@ -15,6 +15,10 @@
 
     <dependencies>
         <dependency>
+            <groupId>com.github.streamshub.demo</groupId>
+            <artifactId>common</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
         </dependency>

@@ -6,6 +6,7 @@ metadata:
 spec:
   hosts:
     - apicurio-registry.127.0.0.1.nip.io
+    - apicurio-registry.kafka.svc.cluster.local
 
   authentication:
     "keycloak":

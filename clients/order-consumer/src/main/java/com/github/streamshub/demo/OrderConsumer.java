@@ -44,10 +44,10 @@ public class OrderConsumer {
 
         // Apicurio Registry configuration
         props.put("apicurio.registry.url", registryUrl);
-        props.put("apicurio.registry.artifact.group-id", "${topic}");
-        props.put("apicurio.auth.service.token.endpoint", tokenEndpoint);
-        props.put("apicurio.auth.client.id", clientId);
-        props.put("apicurio.auth.client.secret", clientSecret);
+        props.put("apicurio.registry.artifact-resolver-strategy", TopicGroupStrategy.class.getName());
+        props.put("apicurio.registry.auth.service.token.endpoint", tokenEndpoint);
+        props.put("apicurio.registry.auth.client.id", clientId);
+        props.put("apicurio.registry.auth.client.secret", clientSecret);
 
         System.out.println("Starting OrderConsumer (Avro)...");
         System.out.println("  Bootstrap: " + bootstrapServers);

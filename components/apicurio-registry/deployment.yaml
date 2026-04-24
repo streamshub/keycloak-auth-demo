@@ -33,7 +33,7 @@ spec:
               memory: 128Mi
 
         - name: registry
-          image: apicurio/apicurio-registry:3.0.6
+          image: apicurio/apicurio-registry:3.2.1
           env:
             - name: APICURIO_STORAGE_KIND
               value: sql
@@ -52,7 +52,7 @@ spec:
               memory: 512Mi
 
         - name: registry-ui
-          image: apicurio/apicurio-registry-ui:3.0.6
+          image: apicurio/apicurio-registry-ui:3.2.1
           env:
             - name: REGISTRY_API_URL
               value: "http://apicurio-registry.127.0.0.1.nip.io/apis/registry/v3"
